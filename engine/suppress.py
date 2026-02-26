@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from state import SuppressRun, append_run
 import re
 from dataclasses import dataclass
 from typing import Dict, List, Set, Tuple
@@ -247,4 +248,18 @@ def run_suppress(
                 svc.users().messages().trash(userId="me", id=mid).execute()
             console.print(f"[green]Moved to trash:[/green] {len(plan.message_ids)}")
 
-    console.print("[bold green]Done.[/bold green]")
+        try:
+            run = SuppressRun(
+                ts_utc=SuppressRun.now_ts(),
+                target=plan.target,
+                mode=plan.mode,
+                label_name=plan.label_name,
+                label_id=label_id,
+                filter_id=filter_id,
+                filter_query=plan.filter_criteria,
+                message_ids=plan.message_ids,
+            )
+            append_run(run)
+        except Exception as e:
+            console.print(f"[yellow]Warning:[/yellow] could not write run journal: {e}")
+        console.print("[bold green]Done.[/bold green]")
