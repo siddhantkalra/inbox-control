@@ -1,6 +1,8 @@
 import argparse
 from scan import run_scan
 from suppress import run_suppress
+from undo import run_undo
+from list_suppressed import run_list_suppressed
 
 def main():
     parser = argparse.ArgumentParser(prog="inbox-control")
@@ -21,12 +23,21 @@ def main():
     sup_p.add_argument("--apply", action="store_true", help="Actually perform changes (default is dry-run)")
     sup_p.add_argument("--yes", action="store_true", help="Skip interactive confirmation (only valid with --apply)")
 
+    list_p = sub.add_parser("list-suppressed", help="List suppression labels and filters")
+    list_p.add_argument("--label-prefix", default="InboxControl/Suppressed")
+
+    undo_p = sub.add_parser("undo", help="Undo last suppression run for a target")
+    undo_p.add_argument("--target", required=True)
+    undo_p.add_argument("--restore-inbox", action="store_true")
+    undo_p.add_argument("--apply", action="store_true")
+    undo_p.add_argument("--yes", action="store_true")
+    undo_p.add_argument("--delete-label-if-empty", action="store_true")
+
     args = parser.parse_args()
 
     if args.cmd == "scan":
         run_scan(query=args.query, limit=args.limit, out_path=args.out)
-
-    if args.cmd == "suppress":
+    elif args.cmd == "suppress":
         run_suppress(
             target=args.target,
             extra_query=args.query,
@@ -37,6 +48,16 @@ def main():
             apply=args.apply,
             assume_yes=args.yes,
         )
+    elif args.cmd == "list-suppressed":
+        run_list_suppressed(label_prefix=args.label_prefix)
+    elif args.cmd == "undo":
+        run_undo(
+            target=args.target,
+            restore_inbox=args.restore_inbox,
+            apply=args.apply,
+            assume_yes=args.yes,
+        )
+
 
 if __name__ == "__main__":
     main()
