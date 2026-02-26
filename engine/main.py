@@ -1,8 +1,11 @@
 import argparse
+
 from scan import run_scan
 from suppress import run_suppress
 from undo import run_undo
 from list_suppressed import run_list_suppressed
+from detect import run_detect
+
 
 def main():
     parser = argparse.ArgumentParser(prog="inbox-control")
@@ -12,6 +15,12 @@ def main():
     scan_p.add_argument("--query", required=True, help='Gmail search query, e.g. "category:promotions older_than:6m"')
     scan_p.add_argument("--limit", type=int, default=500, help="Max messages to sample (not total results).")
     scan_p.add_argument("--out", default="", help="Optional output JSON path")
+
+    det_p = sub.add_parser("detect", help="Detect bulk/marketing candidates and suggest actions")
+    det_p.add_argument("--query", required=True, help='Gmail search query, e.g. "category:promotions older_than:6m"')
+    det_p.add_argument("--limit", type=int, default=500)
+    det_p.add_argument("--kind", choices=["domain", "sender"], default="domain")
+    det_p.add_argument("--out", default="", help="Optional output JSON path")
 
     sup_p = sub.add_parser("suppress", help="Create suppression rule + optionally clean existing mail (safe by default)")
     sup_p.add_argument("--target", required=True, help="Domain (example.com) or email (name@example.com)")
@@ -37,6 +46,10 @@ def main():
 
     if args.cmd == "scan":
         run_scan(query=args.query, limit=args.limit, out_path=args.out)
+
+    elif args.cmd == "detect":
+        run_detect(query=args.query, limit=args.limit, kind=args.kind, out_path=args.out)
+
     elif args.cmd == "suppress":
         run_suppress(
             target=args.target,
@@ -48,13 +61,15 @@ def main():
             apply=args.apply,
             assume_yes=args.yes,
         )
+
     elif args.cmd == "list-suppressed":
         run_list_suppressed(label_prefix=args.label_prefix)
+
     elif args.cmd == "undo":
         run_undo(
             target=args.target,
-            apply=args.apply,
             restore_inbox=args.restore_inbox,
+            apply=args.apply,
             assume_yes=args.yes,
             delete_label_if_empty=args.delete_label_if_empty,
         )
