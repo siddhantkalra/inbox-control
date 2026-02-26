@@ -50,3 +50,20 @@ Next:
 - Wire “replied thread” signal into `detect` using shared logic with `scan` (to protect real conversations).
 - Tune scoring thresholds so obvious newsletters/promotions become `suppress` by default.
 - Add `detect --out` workflow into dashboard pipeline (JSON → UI later).
+
+## Day 1 — Merge & Stabilization (2026-02-26 ET)
+
+**Repository state finalized**
+- Merged `suppression-engine` into `main`.
+- Deleted feature branch locally and remotely.
+- Verified CLI runs from `main` (scan/detect/suppress/list-suppressed/undo).
+- Confirmed repo clean (`git status` synced with origin).
+
+**Outcome**
+- `main` is now the stable source of truth.
+- Feature branch workflow validated.
+- Engine foundation complete for Day 2 development.
+
+**Next**
+- Improve `detect` by integrating true replied-thread signal.
+- Tune suppression thresholds so obvious newsletters auto-classify as `suppress`.
