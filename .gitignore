@@ -26,3 +26,10 @@ engine/token.modify.json
 engine/token.json
 engine/token.readonly.json
 engine/token.modify.json
+
+engine/token.json
+engine/token.readonly.json
+engine/token.modify.json
+engine/credentials.json
+engine/scan.json
+engine/.state/
