@@ -9,7 +9,13 @@ from state import latest_run_for_target
 console = Console()
 
 
-def run_undo(target: str, apply: bool = False, restore_inbox: bool = False, assume_yes: bool = False, delete_label_if_empty: bool = False) -> None:
+def run_undo(
+    target: str,
+    apply: bool = False,
+    restore_inbox: bool = False,
+    assume_yes: bool = False,
+    delete_label_if_empty: bool = False,
+) -> None:
     svc = get_gmail_service_modify()
     run = latest_run_for_target(target)
 
@@ -30,8 +36,8 @@ def run_undo(target: str, apply: bool = False, restore_inbox: bool = False, assu
     table.add_row("Filter exists", "yes" if filter_exists else "no")
     table.add_row("Label", f"{run.label_name} ({run.label_id})")
     table.add_row("Restore INBOX?", "yes" if restore_inbox else "no")
-    table.add_row("Messages to update", str(len(run.message_ids)))
     table.add_row("Delete label if empty?", "yes" if delete_label_if_empty else "no")
+    table.add_row("Messages to update", str(len(run.message_ids)))
     console.print(table)
 
     if not apply:
@@ -59,14 +65,19 @@ def run_undo(target: str, apply: bool = False, restore_inbox: bool = False, assu
         svc.users().messages().batchModify(userId="me", body=body).execute()
         console.print(f"[green]Updated messages:[/green] {len(run.message_ids)}")
 
-     if delete_label_if_empty:
-        lbl = svc.users().labels().get(userId="me", id=run.label_id).execute()
-        mt = int(lbl.get("messagesTotal", 0))
-        tt = int(lbl.get("threadsTotal", 0))
-        if mt == 0 and tt == 0:
-            svc.users().labels().delete(userId="me", id=run.label_id).execute()
-            console.print(f"[green]Deleted empty label:[/green] {run.label_name}")
-        else:
-            console.print(f"[yellow]Label not empty; kept it (messagesTotal={mt}, threadsTotal={tt}).[/yellow]")
+    if delete_label_if_empty:
+        try:
+            lbl = svc.users().labels().get(userId="me", id=run.label_id).execute()
+            mt = int(lbl.get("messagesTotal", 0))
+            tt = int(lbl.get("threadsTotal", 0))
+            if mt == 0 and tt == 0:
+                svc.users().labels().delete(userId="me", id=run.label_id).execute()
+                console.print(f"[green]Deleted empty label:[/green] {run.label_name}")
+            else:
+                console.print(
+                    f"[yellow]Label not empty; kept it (messagesTotal={mt}, threadsTotal={tt}).[/yellow]"
+                )
+        except Exception as e:
+            console.print(f"[yellow]Warning:[/yellow] could not delete label: {e}")
 
     console.print("[bold green]Undo complete.[/bold green]")
