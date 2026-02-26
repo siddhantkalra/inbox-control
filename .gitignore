@@ -15,3 +15,21 @@ engine/.venv/
 # Secrets
 engine/token.json
 engine/credentials.json
+
+# Engine outputs
+engine/scan.json
+
+# OAuth tokens
+engine/token.readonly.json
+engine/token.modify.json
+
+engine/token.json
+engine/token.readonly.json
+engine/token.modify.json
+
+engine/token.json
+engine/token.readonly.json
+engine/token.modify.json
+engine/credentials.json
+engine/scan.json
+engine/.state/

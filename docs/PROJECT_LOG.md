@@ -29,3 +29,24 @@ Next:
 - Removed engine/.venv and credential/token files from git tracking
 - Updated .gitignore to prevent re-adding
 - Recreated local venv and confirmed scan still works
+## Day 1 — 2026-02-26 (ET)
+
+**What we shipped**
+- Engine CLI working end-to-end: `scan`, `suppress`, `list-suppressed`, `undo`, `detect`.
+- OAuth + Gmail API wired (readonly + modify), suppression creates Gmail filter + label and optionally cleans existing mail.
+- Added run journaling (`engine/.state/suppress_runs.jsonl`) so undo is possible.
+- Undo now supports deleting the suppression label if it’s empty.
+- Added initial `detect` command: ranks bulk/marketing candidates with explainable signals + score/confidence output.
+
+**Notable fixes**
+- Resolved indentation issues in `undo.py` and `main.py` during feature wiring.
+- Verified label deletion works (tahinis label removed when empty).
+- Verified suppression + undo cycle works (mailer.jio.com test).
+
+**Where we stopped**
+- `detect` works, but it’s conservative and currently doesn’t incorporate the real “replied threads” signal (so actions skew to “review”).
+
+**Next (Day 2)**
+- Wire “replied thread” signal into `detect` using shared logic with `scan` (to protect real conversations).
+- Tune scoring thresholds so obvious newsletters/promotions become `suppress` by default.
+- Add `detect --out` workflow into dashboard pipeline (JSON → UI later).

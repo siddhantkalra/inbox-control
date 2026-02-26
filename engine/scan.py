@@ -9,7 +9,7 @@ from typing import Dict, List, Tuple
 from rich.console import Console
 from rich.table import Table
 
-from gmail_client import get_gmail_service
+from gmail_client import get_gmail_service_readonly
 
 console = Console()
 
@@ -118,7 +118,7 @@ def _bulk_score(agg: SenderAgg) -> Tuple[int, float, List[str]]:
 
 
 def run_scan(query: str, limit: int = 500, out_path: str = "") -> None:
-    svc = get_gmail_service()
+    svc = get_gmail_service_readonly()
 
     resp = svc.users().messages().list(userId="me", q=query, maxResults=min(limit, 500)).execute()
     msgs = resp.get("messages", []) or []
