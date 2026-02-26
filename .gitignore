@@ -15,3 +15,6 @@ engine/.venv/
 # Secrets
 engine/token.json
 engine/credentials.json
+
+# Engine outputs
+engine/scan.json
