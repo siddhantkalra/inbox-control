@@ -24,3 +24,8 @@ Next:
 - Implement bulk scoring engine
 - Add conversational safety signals (replied threads)
 - Generate suppression recommendations
+
+### Patch — Repo hygiene fix
+- Removed engine/.venv and credential/token files from git tracking
+- Updated .gitignore to prevent re-adding
+- Recreated local venv and confirmed scan still works
