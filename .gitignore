@@ -8,3 +8,10 @@ node_modules/
 *.db
 token.json
 credentials.json
+
+# Virtualenv
+engine/.venv/
+
+# Secrets
+engine/token.json
+engine/credentials.json
