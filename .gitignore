@@ -18,3 +18,7 @@ engine/credentials.json
 
 # Engine outputs
 engine/scan.json
+
+# OAuth tokens
+engine/token.readonly.json
+engine/token.modify.json

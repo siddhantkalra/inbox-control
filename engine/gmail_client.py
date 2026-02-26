@@ -8,7 +8,10 @@ from google.auth.transport.requests import Request
 from config import CREDENTIALS_PATH, TOKEN_READONLY_PATH, TOKEN_MODIFY_PATH
 
 SCOPES_READONLY = ["https://www.googleapis.com/auth/gmail.readonly"]
-SCOPES_MODIFY = ["https://www.googleapis.com/auth/gmail.modify"]
+SCOPES_MODIFY = [
+    "https://www.googleapis.com/auth/gmail.modify",
+    "https://www.googleapis.com/auth/gmail.settings.basic",
+]
 
 
 def _get_service(scopes: list[str], token_path):
