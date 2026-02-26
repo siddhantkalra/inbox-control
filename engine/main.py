@@ -53,9 +53,10 @@ def main():
     elif args.cmd == "undo":
         run_undo(
             target=args.target,
-            restore_inbox=args.restore_inbox,
             apply=args.apply,
+            restore_inbox=args.restore_inbox,
             assume_yes=args.yes,
+            delete_label_if_empty=args.delete_label_if_empty,
         )
 
 
