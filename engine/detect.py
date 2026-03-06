@@ -125,7 +125,7 @@ def _score(signals: Dict[str, float], replied_rate: float) -> Tuple[int, float, 
     if replied_rate > 0:
         reasons.append(f"You replied in related threads ({replied_rate*100:.0f}%)")
 
-    if bulk_score >= 60 and conf >= 0.50 and replied_rate == 0:
+    if bulk_score >= 55 and conf >= 0.50 and replied_rate == 0:
         action = "suppress"
     elif bulk_score >= 30:
         action = "review"
