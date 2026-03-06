@@ -107,7 +107,15 @@ def _score(signals: Dict[str, float], replied_rate: float) -> Tuple[int, float, 
         + w_hdr_hint * signals["bulk_header_hint_rate"]
     )
 
-    raw_adj = raw * (1.0 - min(0.85, replied_rate))
+    combo_boost = 0.0
+    if signals["bulk_header_hint_rate"] >= 0.8 and signals["no_reply_rate"] >= 0.8:
+        combo_boost += 0.10
+        reasons.append("Mass-campaign combo: provider headers + no-reply")
+    if signals["bulk_header_hint_rate"] >= 0.8 and signals["list_unsub_rate"] >= 0.8:
+        combo_boost += 0.10
+        reasons.append("Mass-campaign combo: provider headers + unsubscribe")
+
+    raw_adj = _clamp01(raw + combo_boost) * (1.0 - min(0.85, replied_rate))
     bulk_score = int(round(_clamp01(raw_adj) * 100))
 
     conf = _clamp01((bulk_score / 100) * (1.0 - min(0.70, replied_rate)))
