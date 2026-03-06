@@ -4,7 +4,7 @@ import json
 import re
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Set, Tuple
 
 from rich.console import Console
 from rich.table import Table
@@ -78,13 +78,21 @@ def _clamp01(x: float) -> float:
     return max(0.0, min(1.0, x))
 
 
+def _thread_has_sent(service, thread_id: str) -> bool:
+    thread = service.users().threads().get(userId="me", id=thread_id, format="metadata").execute()
+    for m in thread.get("messages", []) or []:
+        labels = m.get("labelIds", []) or []
+        if "SENT" in labels:
+            return True
+    return False
+
+
 def _score(signals: Dict[str, float], replied_rate: float) -> Tuple[int, float, List[str], str]:
     """
     Returns (bulk_score 0-100, confidence 0-1, signal_strings, suggested_action)
     """
     reasons: List[str] = []
 
-    # weights chosen to be simple + explainable
     w_list_unsub = 0.35
     w_precedence = 0.20
     w_auto_sub = 0.15
@@ -99,15 +107,11 @@ def _score(signals: Dict[str, float], replied_rate: float) -> Tuple[int, float, 
         + w_hdr_hint * signals["bulk_header_hint_rate"]
     )
 
-    # penalize if you replied
-    raw_adj = raw * (1.0 - min(0.8, replied_rate))  # replied_rate reduces score heavily
-
+    raw_adj = raw * (1.0 - min(0.85, replied_rate))
     bulk_score = int(round(_clamp01(raw_adj) * 100))
 
-    # confidence: grows with score, shrinks with replies
-    conf = _clamp01((bulk_score / 100) * (1.0 - min(0.7, replied_rate)))
+    conf = _clamp01((bulk_score / 100) * (1.0 - min(0.70, replied_rate)))
 
-    # build reasons
     if signals["list_unsub_rate"] >= 0.6:
         reasons.append(f"List-Unsubscribe present ({signals['list_unsub_rate']*100:.0f}%)")
     if signals["precedence_bulk_rate"] >= 0.4:
@@ -119,14 +123,14 @@ def _score(signals: Dict[str, float], replied_rate: float) -> Tuple[int, float, 
     if signals["bulk_header_hint_rate"] >= 0.4:
         reasons.append(f"Campaign/mail provider headers ({signals['bulk_header_hint_rate']*100:.0f}%)")
     if replied_rate > 0:
-        reasons.append(f"You replied ({replied_rate*100:.0f}%)")
+        reasons.append(f"You replied in related threads ({replied_rate*100:.0f}%)")
 
-    # suggested action thresholds
-    # require both score + confidence, and avoid suppress if replies are common
-    if bulk_score >= 70 and conf >= 0.55 and replied_rate < 0.15:
+    if bulk_score >= 60 and conf >= 0.50 and replied_rate == 0:
         action = "suppress"
-    else:
+    elif bulk_score >= 30:
         action = "review"
+    else:
+        action = "ignore"
 
     return bulk_score, conf, reasons, action
 
@@ -153,6 +157,7 @@ def run_detect(query: str, limit: int = 500, kind: str = "domain", out_path: str
 
     # aggregate per key
     agg: Dict[str, Dict[str, Any]] = {}
+    thread_owner: Dict[str, str] = {}
 
     def ensure(k: str) -> Dict[str, Any]:
         if k not in agg:
@@ -165,7 +170,7 @@ def run_detect(query: str, limit: int = 500, kind: str = "domain", out_path: str
                 "auto_submitted": 0,
                 "no_reply": 0,
                 "hdr_hint": 0,
-                "replied": 0,
+                "replied_threads": 0,
             }
         return agg[k]
 
@@ -190,8 +195,10 @@ def run_detect(query: str, limit: int = 500, kind: str = "domain", out_path: str
 
         a = ensure(key)
         a["count"] += 1
-        if msg.get("threadId"):
-            a["threads"].add(msg["threadId"])
+        thread_id = msg.get("threadId")
+        if thread_id:
+            a["threads"].add(thread_id)
+            thread_owner.setdefault(thread_id, key)
 
         internal_date = msg.get("internalDate")
         if internal_date:
@@ -220,10 +227,13 @@ def run_detect(query: str, limit: int = 500, kind: str = "domain", out_path: str
         if BULK_HDR_HINT_RE.search(x_mailer) or BULK_HDR_HINT_RE.search(x_camp):
             a["hdr_hint"] += 1
 
-        # replied heuristic: if thread contains SENT by me, your scan.py likely computes this already.
-        # For now: cheap proxy = "Re:" in subject is NOT reliable, so we skip. Keep 0 for now.
-        # We'll wire true replied_rate in next step by reusing scan.py's thread-sent detection.
-        # a["replied"] += 0
+    checked_threads: Set[str] = set()
+    for thread_id, key in thread_owner.items():
+        if thread_id in checked_threads:
+            continue
+        checked_threads.add(thread_id)
+        if _thread_has_sent(svc, thread_id):
+            agg[key]["replied_threads"] += 1
 
     candidates: List[Candidate] = []
     for k, a in agg.items():
@@ -236,7 +246,7 @@ def run_detect(query: str, limit: int = 500, kind: str = "domain", out_path: str
             "no_reply_rate": _safe_pct(a["no_reply"], cnt),
             "bulk_header_hint_rate": _safe_pct(a["hdr_hint"], cnt),
         }
-        replied_rate = _safe_pct(a["replied"], cnt)
+        replied_rate = _safe_pct(a["replied_threads"], threads)
 
         bulk_score, conf, reasons, action = _score(signals, replied_rate)
 
@@ -266,6 +276,7 @@ def run_detect(query: str, limit: int = 500, kind: str = "domain", out_path: str
     t.add_column("Rank", justify="right")
     t.add_column("Key")
     t.add_column("Count", justify="right")
+    t.add_column("Replied%", justify="right")
     t.add_column("BulkScore", justify="right")
     t.add_column("Conf", justify="right")
     t.add_column("Action")
@@ -273,7 +284,16 @@ def run_detect(query: str, limit: int = 500, kind: str = "domain", out_path: str
 
     for i, c in enumerate(candidates[:50], start=1):
         why = "; ".join(c.signals[:4])
-        t.add_row(str(i), c.key, str(c.count), str(c.bulk_score), f"{c.confidence:.2f}", c.suggested_action, why)
+        t.add_row(
+            str(i),
+            c.key,
+            str(c.count),
+            f"{c.replied_rate*100:.0f}%",
+            str(c.bulk_score),
+            f"{c.confidence:.2f}",
+            c.suggested_action,
+            why,
+        )
 
     console.print(t)
 
