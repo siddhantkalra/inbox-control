@@ -97,7 +97,7 @@ def _score(signals: Dict[str, float], replied_rate: float) -> Tuple[int, float, 
     w_precedence = 0.20
     w_auto_sub = 0.15
     w_no_reply = 0.10
-    w_hdr_hint = 0.20
+    w_hdr_hint = 0.35
 
     raw = (
         w_list_unsub * signals["list_unsub_rate"]
